@@ -42,7 +42,7 @@ namespace Kentor.AuthServices.WebSso
                 request.QueryString["ReturnUrl"].FirstOrDefault(),
                 request,
                 options,
-                null);
+				request.StoredRequestState?.RelayData);
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Kentor.AuthServices.WebSso
                 {
                     if (options.SPOptions.DiscoveryServiceUrl != null)
                     {
-                        var commandResult = RedirectToDiscoveryService(returnPath, options.SPOptions, urls);
+                        var commandResult = RedirectToDiscoveryService(returnPath, options.SPOptions, urls, relayData);
                         options.Notifications.SignInCommandResultCreated(commandResult, relayData);
                         return commandResult;
                     }
@@ -94,7 +94,9 @@ namespace Kentor.AuthServices.WebSso
                 }
             }
 
-            Uri returnUrl = ExpandReturnUrl(returnPath, request, urls);
+            var returnUrl = string.IsNullOrEmpty(returnPath)
+                ? null
+                : new Uri(returnPath, UriKind.RelativeOrAbsolute);
 
             return InitiateLoginToIdp(options, relayData, urls, idp, returnUrl);
         }
@@ -116,30 +118,24 @@ namespace Kentor.AuthServices.WebSso
             return commandResult;
         }
 
-        private static Uri ExpandReturnUrl(string returnPath, HttpRequestData request, AuthServicesUrls urls)
-        {
-            Uri returnUrl = null;
-            if (!string.IsNullOrEmpty(returnPath))
-            {
-                var appRelativePath = request.Url.AbsolutePath.Substring(
-                    request.ApplicationUrl.AbsolutePath.Length).TrimStart('/');
-
-                returnUrl = new Uri(new Uri(urls.ApplicationUrl, appRelativePath), returnPath);
-            }
-
-            return returnUrl;
-        }
-
         private static CommandResult RedirectToDiscoveryService(
             string returnPath,
             SPOptions spOptions,
-            AuthServicesUrls authServicesUrls)
+            AuthServicesUrls authServicesUrls,
+            IDictionary<string, string> relayData)
         {
             string returnUrl = authServicesUrls.SignInUrl.OriginalString;
 
-            if(!string.IsNullOrEmpty(returnPath))
+            var relayState = SecureKeyGenerator.CreateRelayState();
+
+            if (!string.IsNullOrEmpty(returnPath))
             {
                 returnUrl += "?ReturnUrl=" + Uri.EscapeDataString(returnPath);
+                returnUrl += "&RelayState=" + Uri.EscapeDataString(relayState);
+            }
+            else
+            {
+                returnUrl += "?RelayState=" + Uri.EscapeDataString(relayState);
             }
 
             var redirectLocation = string.Format(
@@ -152,7 +148,9 @@ namespace Kentor.AuthServices.WebSso
             return new CommandResult()
             {
                 HttpStatusCode = HttpStatusCode.SeeOther,
-                Location = new Uri(redirectLocation)
+                Location = new Uri(redirectLocation),
+                RequestState = new StoredRequestState(null, null, null, relayData),
+                SetCookieName = "Kentor." + relayState
             };
         }
     }

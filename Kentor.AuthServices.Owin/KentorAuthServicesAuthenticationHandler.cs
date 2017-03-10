@@ -38,6 +38,11 @@ namespace Kentor.AuthServices.Owin
 
             var authProperties = new AuthenticationProperties(result.RelayData);
             authProperties.RedirectUri = result.Location.OriginalString;
+            if(result.SessionNotOnOrAfter.HasValue)
+            {
+                authProperties.AllowRefresh = false;
+                authProperties.ExpiresUtc = result.SessionNotOnOrAfter.Value;
+            }
 
             return new MultipleIdentityAuthenticationTicket(identities, authProperties);
         }
@@ -66,10 +71,22 @@ namespace Kentor.AuthServices.Owin
                     // Don't serialize the RedirectUri twice.
                     challenge.Properties.RedirectUri = null;
 
+                    var httpRequestData = await Context.ToHttpRequestData(Options.DataProtector.Unprotect);
+                    if (httpRequestData.StoredRequestState != null)
+                    {
+                        foreach (var item in httpRequestData.StoredRequestState.RelayData)
+                        {
+                            if (!challenge.Properties.Dictionary.ContainsKey(item.Key))
+                            {
+                                challenge.Properties.Dictionary.Add(item.Key, item.Value);
+                            }
+                        }
+                    }
+
                     var result = SignInCommand.Run(
                         idp,
                         redirectUri,
-                        await Context.ToHttpRequestData(Options.DataProtector.Unprotect),
+                        httpRequestData,
                         Options,
                         challenge.Properties.Dictionary);
 
@@ -95,19 +112,11 @@ namespace Kentor.AuthServices.Owin
                 {
                     if (Context.Response.StatusCode / 100 == 3)
                     {
-                        var locationUrl = Context.Response.Headers["Location"];
-
-                        redirectUrl = new Uri(
-                            new Uri(urls.ApplicationUrl.ToString().TrimEnd('/') + Context.Request.Path),
-                            locationUrl
-                            ).ToString();
+                        redirectUrl = Context.Response.Headers["Location"];
                     }
                     else
                     {
-                        redirectUrl = new Uri(
-                            urls.ApplicationUrl,
-                            Context.Request.Path.ToUriComponent().TrimStart('/'))
-                            .ToString();
+                        redirectUrl = Context.Request.Path.ToUriComponent();
                     }
                 }
 

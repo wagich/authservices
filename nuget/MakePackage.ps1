@@ -4,22 +4,22 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$status = (git status)
-$clean = $status| select-string "working directory clean"
+#$status = (git status)
+#$clean = $status| select-string "working directory clean"
 
-if ("$clean" -eq "")
-{
-  echo "Working copy is not clean. Cannot proceed."
-  exit
-}
+#if ("$clean" -eq "")
+#{
+#  echo "Working copy is not clean. Cannot proceed."
+#  exit
+#}
 
-$master = $status | select-string "On branch master"
+#$master = $status | select-string "On branch master"
 
-if ("$master" -eq "")
-{
-  echo "Releases are only allowed from the master branch."
-  exit
-}
+#if ("$master" -eq "")
+#{
+#  echo "Releases are only allowed from the master branch."
+#  exit
+#}
 
 pushd ..
 del Kentor.AuthServices\bin\Release\*.dll
@@ -71,15 +71,15 @@ function Create-Nuspec($projectName)
 }
 
 Create-Nuspec("Kentor.AuthServices")
-Create-Nuspec("Kentor.AuthServices.Mvc")
-Create-Nuspec("Kentor.AuthServices.Owin")
-Create-Nuspec("Kentor.AuthServices.HttpModule")
+#Create-Nuspec("Kentor.AuthServices.Mvc")
+#Create-Nuspec("Kentor.AuthServices.Owin")
+#Create-Nuspec("Kentor.AuthServices.HttpModule")
 
 echo "Building package..."
 
 nuget pack -build -outputdirectory nuget Kentor.AuthServices\Kentor.AuthServices.csproj
-nuget pack -build -outputdirectory nuget Kentor.AuthServices.Mvc\Kentor.AuthServices.Mvc.csproj
-nuget pack -build -outputdirectory nuget Kentor.AuthServices.Owin\Kentor.AuthServices.Owin.csproj
-nuget pack -build -outputdirectory nuget Kentor.AuthServices.HttpModule\Kentor.AuthServices.HttpModule.csproj
+#nuget pack -build -outputdirectory nuget Kentor.AuthServices.Mvc\Kentor.AuthServices.Mvc.csproj
+#nuget pack -build -outputdirectory nuget Kentor.AuthServices.Owin\Kentor.AuthServices.Owin.csproj
+#nuget pack -build -outputdirectory nuget Kentor.AuthServices.HttpModule\Kentor.AuthServices.HttpModule.csproj
 
 popd
